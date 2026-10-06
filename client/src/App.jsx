@@ -5,11 +5,14 @@ import Sidebar from "./components/Sidebar";
 import TodoForm from "./components/TodoForm";
 import TodoItem from "./components/TodoItem";
 
+const ITEMS_PER_PAGE = 10;
+
 function App() {
   const [todos, setTodos] = useState([]);
   const [filter, setFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Shows an error in the banner (and logs it in the console)
   function showError(err) {
@@ -35,18 +38,25 @@ function App() {
     loadTodos();
   }, []);
 
+  // Reset to page 1 whenever the filter changes
+  function handleFilterChange(newFilter) {
+    setFilter(newFilter);
+    setCurrentPage(1);
+  }
+
   // Add a new todo to the top of the list
   async function handleAdd(title) {
     try {
       setError("");
       const newTodo = await createTodo(title);
       setTodos((prev) => [newTodo, ...prev]);
+      setCurrentPage(1); // Jump to page 1 so the newly added task is immediately visible
     } catch (err) {
       showError(err);
     }
   }
 
- // Replace the edited todo with the updated version from the server
+  // Replace the edited todo with the updated version from the server
   async function handleUpdate(id, data) {
     try {
       setError("");
@@ -64,7 +74,16 @@ function App() {
     try {
       setError("");
       await deleteTodo(id);
-      setTodos((prev) => prev.filter((todo) => todo._id !== id));
+      setTodos((prev) => {
+        const remaining = prev.filter((todo) => todo._id !== id);
+        // If deleting the last item on the current page, step back one page
+        const newTotalPages =
+          Math.ceil(remaining.filter(FILTERS[filter].test).length / ITEMS_PER_PAGE) || 1;
+        if (currentPage > newTotalPages) {
+          setCurrentPage(newTotalPages);
+        }
+        return remaining;
+      });
     } catch (err) {
       showError(err);
     }
@@ -81,6 +100,7 @@ function App() {
       }
 
       setTodos((prev) => prev.filter((todo) => !todo.completed));
+      setCurrentPage(1);
     } catch (err) {
       showError(err);
     }
@@ -91,6 +111,11 @@ function App() {
 
   // "1 task" or "3 tasks"
   const taskWord = filteredTodos.length === 1 ? "task" : "tasks";
+
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredTodos.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentTodos = filteredTodos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // Decide what to show in the list area
   function renderTodos() {
@@ -113,16 +138,63 @@ function App() {
     }
 
     return (
-      <ul className="todo-list">
-        {filteredTodos.map((todo) => (
-          <TodoItem
-            key={todo._id}
-            todo={todo}
-            onUpdate={handleUpdate}
-            onDelete={handleDelete}
-          />
-        ))}
-      </ul>
+      <>
+        <ul className="todo-list">
+          {currentTodos.map((todo) => (
+            <TodoItem
+              key={todo._id}
+              todo={todo}
+              onUpdate={handleUpdate}
+              onDelete={handleDelete}
+            />
+          ))}
+        </ul>
+
+        {/* Pagination buttons: « ‹ 1 2 3 ... › » */}
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              aria-label="First page"
+            >
+              «
+            </button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              aria-label="Previous page"
+            >
+              ‹
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+              <button
+                key={pageNum}
+                onClick={() => setCurrentPage(pageNum)}
+                className={currentPage === pageNum ? "active" : ""}
+              >
+                {pageNum}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              aria-label="Next page"
+            >
+              ›
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              aria-label="Last page"
+            >
+              »
+            </button>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -131,7 +203,7 @@ function App() {
       <Sidebar
         todos={todos}
         filter={filter}
-        onFilter={setFilter}
+        onFilter={handleFilterChange}
         onClearDone={handleClearDone}
       />
 
