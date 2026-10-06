@@ -46,13 +46,14 @@ function App() {
     }
   }
 
-  // Replace the edited todo with the updated version from the server
+ // Replace the edited todo with the updated version from the server
   async function handleUpdate(id, data) {
     try {
       setError("");
       const updated = await updateTodo(id, data);
-      // TODO: Complete this. Update the `todos` state so the edited todo is
-      // replaced with `updated` (keep every other todo as it is).
+      setTodos((prev) =>
+        prev.map((todo) => (todo._id === id ? updated : todo))
+      );
     } catch (err) {
       showError(err);
     }

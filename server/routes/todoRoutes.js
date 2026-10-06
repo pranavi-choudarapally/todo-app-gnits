@@ -1,17 +1,15 @@
-const express = require("express");
+const express = require('express');
+const router = express.Router();
 const {
   getTodos,
   createTodo,
   updateTodo,
   deleteTodo,
-} = require("../controllers/todoController");
+} = require('../controllers/todoController');
 
-const router = express.Router();
-
-router.get("/", getTodos);
-router.post("/", createTodo);
-// Complete the route for 3rd api controller
-
-router.delete("/:id", deleteTodo);
+router.get('/', getTodos);
+router.post('/', createTodo);
+router.put('/:id', updateTodo);
+router.delete('/:id', deleteTodo);
 
 module.exports = router;
